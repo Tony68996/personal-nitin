@@ -1,0 +1,403 @@
+from pyrogram import Client, filters
+import os
+import time
+from threading import Thread
+from flask import Flask
+from pyrogram.types import Message
+import asyncio
+from pymongo import MongoClient
+from PIL import Image
+import imagehash
+import re
+
+HANDLER = "."
+API_ID = os.environ.get("API_ID")
+API_HASH = os.environ.get("API_HASH")
+SESSION = os.environ.get("SESSION")
+mongo_uri = os.getenv('MONGO_URI', "mongodb+srv://Lakshay3434:Tony123@cluster0.agsna9b.mongodb.net/?retryWrites=true&w=majority")
+waifu_grabber_bot = 6195436879
+husbando_grabber_bot = 6546492683
+grab_your_waifu_bot = 5934263177
+grab_your_Husbando_bot = 6212414747
+catch_your_husbando_bot = 6763528462
+catch_your_waifu_bot = 6883098627
+Character_Secure_Bot = 6438576771
+
+if not mongo_uri:
+    raise Exception("MONGO_URI environment variable is not set")
+    
+print(f"Connected to MongoDB at: {mongo_uri}")
+mongo_client = MongoClient(mongo_uri)
+db = mongo_client['grabber_db']
+collection = db['unique_ids']
+waifu_grabber_collection = db['waifu_grabber_image_hashes']
+guess_bots_collection = db['guess_hashes']
+secure_bot_collection = db['secure_ids']
+
+rarity_settingssss = {
+    "Animated": True,
+    "Christmas": True,
+    "Common": True,
+    "Emerald": True,
+    "Exclusive": True,
+    "Halloween": True,
+    "Holi": True,
+    "Legendary": True,
+    "Medium": True,
+    "Mythic": True,
+    "New Year": True,
+    "Rare": True,
+    "Shop": True,
+    "Special": True,
+    "Valentine": True,
+    "Winters": True,
+    "X-Verse": True
+}
+
+rarity_settingsss = {
+    "Common": True,
+    "Medium": True,
+    "Legendary": True,
+    "Rare": True,
+    "Exclusive": True,
+    "Mythical": True,
+    "Special": True,
+    "Special edition": True,
+    "Exotic": True,
+    "Marvelous": True
+}
+
+rarity_settingss = {
+    "Common": True,
+    "Medium": True,
+    "Legendary": True,
+    "Rare": True,
+    "Astral": True,
+    "Cosmic": True,
+    "Premium": True,
+    "Limited Edition": True
+}
+
+rarity_settings = {
+    "celestial": True,
+    "Limited Edition": True
+}
+
+auto_reply_enabled = True
+auto_response_groups = {}
+
+async def get_reply_by_image_hash(image_hash):
+    doc = waifu_grabber_collection.find_one({"image_hash": image_hash})
+    if doc:
+        return doc.get("reply"), doc.get("rarity")
+    return None, None
+
+async def get_reply_by_image_hashs(image_hash):
+    doc = guess_bots_collection.find_one({"image_hash": image_hash})
+    if doc:
+        return doc.get("reply"), doc.get("rarity")
+    return None, None
+
+async def get_reply_by_file_unique_ids(file_unique_id):
+    doc = secure_bot_collection.find_one({"file_unique_id": file_unique_id})
+    if doc:
+        return doc.get("reply"), doc.get("rarity")
+    return None, None
+
+async def get_reply_by_file_unique_id(file_unique_id):
+    doc = collection.find_one({"file_unique_id": file_unique_id})
+    if doc:
+        return doc.get("reply"), doc.get("rarity")
+    return None, None
+
+app = Client(
+    "word9",
+    api_id=API_ID,
+    api_hash=API_HASH,
+    session_string=SESSION
+)
+
+server = Flask(__name__)
+@server.route("/")
+def home():
+    return "Bot is running"
+
+@app.on_message(filters.user(Character_Secure_Bot) & (filters.photo | filters.video | filters.animation) & filters.regex(r".*/secure"))
+async def handle_Character_Secure_Bot(client, message):
+    try:
+        if auto_reply_enabled and message.chat.id in auto_response_groups:
+            if "𝗥𝗲𝗺𝗲𝗺𝗯𝗲𝗿 𝘁𝗼 𝘂𝘀𝗲" in message.caption or message.text:
+                print("Ignored message with '𝗥𝗲𝗺𝗲𝗺𝗯𝗲𝗿 𝘁𝗼 𝘂𝘀𝗲'")
+                return
+            file_unique_id = None
+            
+            if message.photo:
+                file_unique_id = message.photo.file_unique_id
+            elif message.video:
+                file_unique_id = message.video.file_unique_id
+            elif message.animation:
+                file_unique_id = message.animation.file_unique_id
+            
+            if file_unique_id:
+                reply_text, rarity = await get_reply_by_file_unique_ids(file_unique_id)
+                if reply_text and rarity_settingssss.get(rarity, False):
+                    sent_message = await client.send_message(chat_id=message.chat.id, text=reply_text)
+                else:
+                    print(f"Unique ID not found or rarity not enabled: {file_unique_id}")
+            else:
+                print("No valid media found in the message.")
+    except Exception as e:
+        print(f"Error replying to Character_Secure_Bot: {e}")
+
+@app.on_message(filters.user(grab_your_Husbando_bot) & filters.photo & filters.regex(r".*/grab"))
+async def handle_grab_your_Husbando_bot(client, message):
+    try:
+        if auto_reply_enabled and message.chat.id in auto_response_groups:
+            file_unique_id = message.photo.file_unique_id
+            reply_text, rarity = await get_reply_by_file_unique_id(file_unique_id)
+            if reply_text and rarity_settingss.get(rarity, False):
+                sent_message = await client.send_message(chat_id=message.chat.id, text=reply_text)
+                await asyncio.sleep(2)
+                await sent_message.delete()
+            else:
+                print(f"Unique ID not found or rarity not enabled: {file_unique_id}")
+    except Exception as e:
+        print(f"Error replying to grab_your_Husbando_bot: {e}")
+
+@app.on_message(filters.user(grab_your_waifu_bot) & filters.photo & filters.regex(r".*/grab"))
+async def handle_grab_your_waifu_bot(client, message):
+    try:
+        if auto_reply_enabled and message.chat.id in auto_response_groups:
+            file_unique_id = message.photo.file_unique_id
+            reply_text, rarity = await get_reply_by_file_unique_id(file_unique_id)
+            if reply_text and rarity_settingss.get(rarity, False):
+                sent_message = await client.send_message(chat_id=message.chat.id, text=reply_text)
+                await asyncio.sleep(600)
+                await sent_message.delete()
+            else:
+                print(f"Unique ID not found or rarity not enabled: {file_unique_id}")
+    except Exception as e:
+        print(f"Error replying to grab_your_waifu_bot: {e}")
+
+@app.on_message(filters.user(catch_your_husbando_bot) & filters.photo & filters.regex(r".*/guess"))
+async def handle_catch_your_husbando_bot(client, message):
+    try:
+        if auto_reply_enabled and message.chat.id in auto_response_groups:
+            file_path = await message.download()
+            image_hash = hash_image(file_path)
+            reply_text, rarity = await get_reply_by_image_hashs(image_hash)
+            if reply_text and rarity_settingsss.get(rarity, False):
+                sent_message = await client.send_message(chat_id=message.chat.id, text=reply_text)
+                await asyncio.sleep(60)
+                await sent_message.delete()
+            else:
+                print(f"Image hash not found or rarity not enabled: {image_hash}")
+    except Exception as e:
+        print(f"Error replying to catch_your_husbando_bot: {e}")
+
+@app.on_message(filters.user(catch_your_waifu_bot) & filters.photo & filters.regex(r".*/guess"))
+async def handle_catch_your_waifu_bot(client, message):
+    try:
+        if auto_reply_enabled and message.chat.id in auto_response_groups:
+            file_path = await message.download()
+            image_hash = hash_image(file_path)
+            reply_text, rarity = await get_reply_by_image_hashs(image_hash)
+            if reply_text and rarity_settingsss.get(rarity, False):
+                sent_message = await client.send_message(chat_id=message.chat.id, text=reply_text)
+                await asyncio.sleep(60)
+                await sent_message.delete()
+            else:
+                print(f"Image hash not found or rarity not enabled: {image_hash}")
+    except Exception as e:
+        print(f"Error replying to catch_your_waifu_bot: {e}")
+
+@app.on_message(filters.user(waifu_grabber_bot) & filters.photo & filters.regex(r".*/grab"))
+async def handle_waifu_grabber_bot(client, message):
+    try:
+        if auto_reply_enabled and message.chat.id in auto_response_groups:
+            file_path = await message.download()
+            image_hash = hash_image(file_path)
+            reply_text, rarity = await get_reply_by_image_hash(image_hash)
+            if reply_text and rarity_settings.get(rarity, False):
+                sent_message = await client.send_message(chat_id=message.chat.id, text=reply_text)
+                await asyncio.sleep(600)
+                await sent_message.delete()
+            else:
+                print(f"Image hash not found or rarity not enabled: {image_hash}")
+    except Exception as e:
+        print(f"Error replying to waifu_grabber_bot: {e}")
+
+@app.on_message(filters.user(husbando_grabber_bot) & filters.photo & filters.regex(r".*/grab"))
+async def handle_husbando_grabber_bot(client, message):
+    try:
+        if auto_reply_enabled and message.chat.id in auto_response_groups:
+            file_path = await message.download()
+            image_hash = hash_image(file_path)
+            reply_text, rarity = await get_reply_by_image_hash(image_hash)
+            if reply_text and rarity_settings.get(rarity, False):
+                sent_message = await client.send_message(chat_id=message.chat.id, text=reply_text)
+                await asyncio.sleep(600)
+                await sent_message.delete()
+            else:
+                print(f"Image hash not found or rarity not enabled: {image_hash}")
+    except Exception as e:
+        print(f"Error replying to husbando_grabber_bot: {e}")
+
+def hash_image(image_path):
+    with Image.open(image_path) as img:
+        hash_value = imagehash.phash(img)
+        return str(hash_value)
+        
+@app.on_message(filters.command("add", HANDLER))
+async def add_auto_response_group(client, message):
+    global auto_response_groups
+    try:
+        cmd = message.command
+        if len(cmd) == 2:
+            chat_id = int(cmd[1])
+            if chat_id not in auto_response_groups:
+                auto_response_groups[chat_id] = True
+                await message.reply(f"Group with chat ID `{chat_id}` added to auto-response groups.")
+            else:
+                await message.reply(f"Group with chat ID `{chat_id}` is already in auto-response groups.")
+        else:
+            chat_id = message.chat.id
+            if chat_id not in auto_response_groups:
+                auto_response_groups[chat_id] = True
+                await message.reply("This group has been added to auto-response groups.")
+            else:
+                await message.reply("This group is already in auto-response groups.")
+    except Exception as e:
+        print(f"Error adding auto-response group: {e}")
+
+@app.on_message(filters.command("remove", HANDLER))
+async def remove_auto_response_group(client, message):
+    global auto_response_groups
+    try:
+        cmd = message.command
+        if len(cmd) == 2:
+            chat_id = int(cmd[1])
+            if chat_id in auto_response_groups:
+                del auto_response_groups[chat_id]
+                await message.reply(f"Group with chat ID `{chat_id}` removed from auto-response groups.")
+            else:
+                await message.reply(f"Group with chat ID `{chat_id}` is not in auto-response groups.")
+        else:
+            chat_id = message.chat.id
+            if chat_id in auto_response_groups:
+                del auto_response_groups[chat_id]
+                await message.reply("This group has been removed from auto-response groups.")
+            else:
+                await message.reply("This group is not in auto-response groups.")
+    except Exception as e:
+        print(f"Error removing auto-response group: {e}")
+
+@app.on_message(filters.command("auto", HANDLER))
+async def toggle_auto_reply(client, message):
+    global auto_reply_enabled
+    try:
+        cmd = message.command
+        if len(cmd) == 2 and cmd[1].lower() in ['on', 'off']:
+            if cmd[1].lower() == 'on':
+                if not auto_reply_enabled:
+                    auto_reply_enabled = True
+                    await message.reply("Auto-reply enabled.")
+                else:
+                    await message.reply("Auto-reply is already enabled.")
+            elif cmd[1].lower() == 'off':
+                if auto_reply_enabled:
+                    auto_reply_enabled = False
+                    await message.reply("Auto-reply disabled.")
+                else:
+                    await message.reply("Auto-reply is already disabled.")
+        else:
+            await message.edit("Use like this: .auto [on/off]")
+    except Exception as e:
+        print(f"Error toggling auto-reply: {e}")
+
+@app.on_message(filters.command("chats", HANDLER))
+async def list_auto_response_groups(client, message):
+    try:
+        if auto_response_groups:
+            response_text = f"Auto-response enabled for {len(auto_response_groups)} group(s):\n"
+            for chat_id in auto_response_groups:
+                chat_info = await client.get_chat(chat_id)
+                response_text += f"• {chat_info.title} (Chat ID: `{chat_id}`)\n"
+            await message.reply(response_text)
+        else:
+            await message.reply("No groups have been added to auto-response.")
+    except Exception as e:
+        print(f"Error listing auto-response groups: {e}")
+
+is_spamming = False
+GC_LIST = ["-1002136935704", "-1002186623520", "-1002061504649", "-1002220303971"]
+
+@app.on_message(filters.command("xxpp", HANDLER))
+async def delay_handler(client, message):
+    global is_spamming
+    try:
+        if str(message.chat.id) not in GC_LIST:
+            return
+        reply = message.reply_to_message
+        cmd = message.command
+
+        if len(cmd) < 3:
+            await app.send_message(message.chat.id, "Use like this: .ds [count spam] [delay time in seconds] [text messages]")
+        elif len(cmd) > 2 and not reply:
+            await message.delete()
+            msg = message.text.split(None, 3)
+            times = int(msg[1]) if msg[1].isdigit() else None
+            sec = int(msg[2]) if msg[2].isdigit() else None
+            text = msg[3]
+            is_spamming = True
+            for x in range(times):
+                if not is_spamming:
+                    break
+                await app.send_message(
+                    message.chat.id,
+                    text
+                )
+                await asyncio.sleep(sec)
+            is_spamming = False
+        else:
+            await app.send_message(message.chat.id, "Something wrong in spam command!")
+    except Exception as e:
+        print(e)
+        
+@app.on_message(filters.command("stopxxpp", HANDLER))
+async def stop_delay_handler(client, message):
+    global is_spamming
+
+    is_spamming = False
+    await app.send_message(message.chat.id, "Spamming stopped.")
+
+@app.on_message(filters.command("ding", HANDLER) & filters.me)
+async def ping_pong(client: Client, message: Message):
+    start_time = time.time()
+    msg = await message.reply_text("Ping...")
+    await msg.edit("✮ᑭｴƝGing...✮")
+    end_time = time.time()
+    ping_time = round((end_time - start_time) * 1000, 3)
+    
+    uptime_seconds = time.time() - bot_start_time
+    uptime_str = format_uptime(uptime_seconds)
+    
+    await msg.edit(f"I Aᴍ Aʟɪᴠᴇ Mᴀꜱᴛᴇʀ\n⋙ 🔔 ᑭｴƝG: `{ping_time}` ms\n⋙ 🕒 Uptime: `{uptime_str}`")
+    try:
+        await message.delete()
+    except Exception as e:
+        print(f"Error deleting message: {e}")
+
+def format_uptime(seconds):
+    hours, remainder = divmod(int(seconds), 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours}h {minutes}m {seconds}s"
+        
+def run():
+    server.run(host="0.0.0.0", port=int(os.environ.get('PORT', 8080)))  # Ensure to use port 8080
+
+if __name__ == "__main__":
+    bot_start_time = time.time()
+    t = Thread(target=run)
+    t.start()
+    app.run()
