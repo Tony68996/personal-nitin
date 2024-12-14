@@ -17,8 +17,6 @@ SESSION = os.environ.get("SESSION")
 mongo_uri = os.getenv('MONGO_URI', "mongodb+srv://Lakshay3434:Tony123@cluster0.agsna9b.mongodb.net/?retryWrites=true&w=majority")
 waifu_grabber_bot = 6195436879
 husbando_grabber_bot = 6546492683
-grab_your_waifu_bot = 5934263177
-grab_your_Husbando_bot = 6212414747
 catch_your_husbando_bot = 6763528462
 catch_your_waifu_bot = 6883098627
 Character_Secure_Bot = 6438576771
@@ -67,17 +65,6 @@ rarity_settingsss = {
     "Marvelous": True
 }
 
-rarity_settingss = {
-    "Common": True,
-    "Medium": True,
-    "Legendary": True,
-    "Rare": True,
-    "Astral": True,
-    "Cosmic": True,
-    "Premium": True,
-    "Limited Edition": True
-}
-
 rarity_settings = {
     "celestial": True,
     "Limited Edition": True
@@ -100,12 +87,6 @@ async def get_reply_by_image_hashs(image_hash):
 
 async def get_reply_by_file_unique_ids(file_unique_id):
     doc = secure_bot_collection.find_one({"file_unique_id": file_unique_id})
-    if doc:
-        return doc.get("reply"), doc.get("rarity")
-    return None, None
-
-async def get_reply_by_file_unique_id(file_unique_id):
-    doc = collection.find_one({"file_unique_id": file_unique_id})
     if doc:
         return doc.get("reply"), doc.get("rarity")
     return None, None
@@ -148,36 +129,6 @@ async def handle_Character_Secure_Bot(client, message):
                 print("No valid media found in the message.")
     except Exception as e:
         print(f"Error replying to Character_Secure_Bot: {e}")
-
-@app.on_message(filters.user(grab_your_Husbando_bot) & filters.photo & filters.regex(r".*/grab"))
-async def handle_grab_your_Husbando_bot(client, message):
-    try:
-        if auto_reply_enabled and message.chat.id in auto_response_groups:
-            file_unique_id = message.photo.file_unique_id
-            reply_text, rarity = await get_reply_by_file_unique_id(file_unique_id)
-            if reply_text and rarity_settingss.get(rarity, False):
-                sent_message = await client.send_message(chat_id=message.chat.id, text=reply_text)
-                await asyncio.sleep(2)
-                await sent_message.delete()
-            else:
-                print(f"Unique ID not found or rarity not enabled: {file_unique_id}")
-    except Exception as e:
-        print(f"Error replying to grab_your_Husbando_bot: {e}")
-
-@app.on_message(filters.user(grab_your_waifu_bot) & filters.photo & filters.regex(r".*/grab"))
-async def handle_grab_your_waifu_bot(client, message):
-    try:
-        if auto_reply_enabled and message.chat.id in auto_response_groups:
-            file_unique_id = message.photo.file_unique_id
-            reply_text, rarity = await get_reply_by_file_unique_id(file_unique_id)
-            if reply_text and rarity_settingss.get(rarity, False):
-                sent_message = await client.send_message(chat_id=message.chat.id, text=reply_text)
-                await asyncio.sleep(600)
-                await sent_message.delete()
-            else:
-                print(f"Unique ID not found or rarity not enabled: {file_unique_id}")
-    except Exception as e:
-        print(f"Error replying to grab_your_waifu_bot: {e}")
 
 @app.on_message(filters.user(catch_your_husbando_bot) & filters.photo & filters.regex(r".*/guess"))
 async def handle_catch_your_husbando_bot(client, message):
@@ -328,48 +279,6 @@ async def list_auto_response_groups(client, message):
             await message.reply("No groups have been added to auto-response.")
     except Exception as e:
         print(f"Error listing auto-response groups: {e}")
-
-is_spamming = False
-GC_LIST = ["-1002136935704", "-1002186623520", "-1002061504649", "-1002220303971"]
-
-@app.on_message(filters.command("xxpp", HANDLER))
-async def delay_handler(client, message):
-    global is_spamming
-    try:
-        if str(message.chat.id) not in GC_LIST:
-            return
-        reply = message.reply_to_message
-        cmd = message.command
-
-        if len(cmd) < 3:
-            await app.send_message(message.chat.id, "Use like this: .ds [count spam] [delay time in seconds] [text messages]")
-        elif len(cmd) > 2 and not reply:
-            await message.delete()
-            msg = message.text.split(None, 3)
-            times = int(msg[1]) if msg[1].isdigit() else None
-            sec = int(msg[2]) if msg[2].isdigit() else None
-            text = msg[3]
-            is_spamming = True
-            for x in range(times):
-                if not is_spamming:
-                    break
-                await app.send_message(
-                    message.chat.id,
-                    text
-                )
-                await asyncio.sleep(sec)
-            is_spamming = False
-        else:
-            await app.send_message(message.chat.id, "Something wrong in spam command!")
-    except Exception as e:
-        print(e)
-        
-@app.on_message(filters.command("stopxxpp", HANDLER))
-async def stop_delay_handler(client, message):
-    global is_spamming
-
-    is_spamming = False
-    await app.send_message(message.chat.id, "Spamming stopped.")
 
 @app.on_message(filters.command("ding", HANDLER) & filters.me)
 async def ping_pong(client: Client, message: Message):
