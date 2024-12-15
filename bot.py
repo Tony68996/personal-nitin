@@ -373,10 +373,6 @@ async def clean_invalid_chat_ids(client):
             print(f"Removing invalid Chat ID: {chat_id}")
     auto_response_groups = valid_groups
     save_auto_response_groups()
-
-@app.on_startup()
-async def startup(client):
-    await clean_invalid_chat_ids(client)
     
 @app.on_message(filters.command("ding", HANDLER) & filters.me)
 async def ping_pong(client: Client, message: Message):
