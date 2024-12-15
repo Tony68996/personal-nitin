@@ -84,6 +84,7 @@ rarity_settings = {
 }
 
 auto_reply_enabled = True
+auto_response_groups = {}
 
 async def get_reply_by_image_hash(image_hash):
     doc = waifu_grabber_collection.find_one({"image_hash": image_hash})
@@ -121,38 +122,6 @@ server = Flask(__name__)
 def home():
     return "Bot is running"
 
-GRAB_CHATS = ["-1002201939018", "-1002198287987", "-1002186623520"]
-
-@app.on_message(filters.user(grab_your_Husbando_bot) & filters.photo & filters.regex(r".*/grab"))
-async def handle_grab_your_Husbando_bot(client, message):
-    try:
-        if auto_reply_enabled and str(message.chat.id) in GRAB_CHATS:
-            file_unique_id = message.photo.file_unique_id
-            reply_text, rarity = await get_reply_by_file_unique_id(file_unique_id)
-            if reply_text and rarity_settingss.get(rarity, False):
-                sent_message = await client.send_message(chat_id=message.chat.id, text=reply_text)
-                await asyncio.sleep(2)
-                await sent_message.delete()
-            else:
-                print(f"Unique ID not found or rarity not enabled: {file_unique_id}")
-    except Exception as e:
-        print(f"Error replying to grab_your_Husbando_bot: {e}")
-
-@app.on_message(filters.user(grab_your_waifu_bot) & filters.photo & filters.regex(r".*/grab"))
-async def handle_grab_your_waifu_bot(client, message):
-    try:
-        if auto_reply_enabled and str(message.chat.id) in GRAB_CHATS:
-            file_unique_id = message.photo.file_unique_id
-            reply_text, rarity = await get_reply_by_file_unique_id(file_unique_id)
-            if reply_text and rarity_settingss.get(rarity, False):
-                sent_message = await client.send_message(chat_id=message.chat.id, text=reply_text)
-                await asyncio.sleep(600)
-                await sent_message.delete()
-            else:
-                print(f"Unique ID not found or rarity not enabled: {file_unique_id}")
-    except Exception as e:
-        print(f"Error replying to grab_your_waifu_bot: {e}")
-
 @app.on_message(filters.user(Character_Secure_Bot) & (filters.photo | filters.video | filters.animation) & filters.regex(r".*/secure"))
 async def handle_Character_Secure_Bot(client, message):
     try:
@@ -179,6 +148,36 @@ async def handle_Character_Secure_Bot(client, message):
                 print("No valid media found in the message.")
     except Exception as e:
         print(f"Error replying to Character_Secure_Bot: {e}")
+
+@app.on_message(filters.user(grab_your_Husbando_bot) & filters.photo & filters.regex(r".*/grab"))
+async def handle_grab_your_Husbando_bot(client, message):
+    try:
+        if auto_reply_enabled and message.chat.id in auto_response_groups:
+            file_unique_id = message.photo.file_unique_id
+            reply_text, rarity = await get_reply_by_file_unique_id(file_unique_id)
+            if reply_text and rarity_settingss.get(rarity, False):
+                sent_message = await client.send_message(chat_id=message.chat.id, text=reply_text)
+                await asyncio.sleep(2)
+                await sent_message.delete()
+            else:
+                print(f"Unique ID not found or rarity not enabled: {file_unique_id}")
+    except Exception as e:
+        print(f"Error replying to grab_your_Husbando_bot: {e}")
+
+@app.on_message(filters.user(grab_your_waifu_bot) & filters.photo & filters.regex(r".*/grab"))
+async def handle_grab_your_waifu_bot(client, message):
+    try:
+        if auto_reply_enabled and message.chat.id in auto_response_groups:
+            file_unique_id = message.photo.file_unique_id
+            reply_text, rarity = await get_reply_by_file_unique_id(file_unique_id)
+            if reply_text and rarity_settingss.get(rarity, False):
+                sent_message = await client.send_message(chat_id=message.chat.id, text=reply_text)
+                await asyncio.sleep(600)
+                await sent_message.delete()
+            else:
+                print(f"Unique ID not found or rarity not enabled: {file_unique_id}")
+    except Exception as e:
+        print(f"Error replying to grab_your_waifu_bot: {e}")
 
 @app.on_message(filters.user(catch_your_husbando_bot) & filters.photo & filters.regex(r".*/guess"))
 async def handle_catch_your_husbando_bot(client, message):
@@ -248,20 +247,7 @@ def hash_image(image_path):
     with Image.open(image_path) as img:
         hash_value = imagehash.phash(img)
         return str(hash_value)
-
-def get_auto_response_groups():
-    return {str(group['chat_id']): True for group in collection.find()}
-
-def save_auto_response_group(chat_id):
-    collection.update_one(
-        {"chat_id": chat_id},
-        {"$set": {"chat_id": chat_id}},
-        upsert=True
-    )
-
-def remove_auto_response_group_from_db(chat_id):
-    collection.delete_one({"chat_id": chat_id})
-
+        
 @app.on_message(filters.command("add", HANDLER))
 async def add_auto_response_group(client, message):
     global auto_response_groups
@@ -269,19 +255,18 @@ async def add_auto_response_group(client, message):
         cmd = message.command
         if len(cmd) == 2:
             chat_id = int(cmd[1])
-        else:
-            chat_id = message.chat.id
-        
-        try:
-            chat = await client.get_chat(chat_id)  # Validate the chat ID
             if chat_id not in auto_response_groups:
                 auto_response_groups[chat_id] = True
-                save_auto_response_groups()
-                await message.reply(f"Group '{chat.title}' with Chat ID `{chat_id}` added to auto-response groups.")
+                await message.reply(f"Group with chat ID `{chat_id}` added to auto-response groups.")
             else:
-                await message.reply(f"Group '{chat.title}' with Chat ID `{chat_id}` is already in auto-response groups.")
-        except ValueError:
-            await message.reply(f"Invalid Chat ID: {chat_id}. Please ensure the bot is added to the group.")
+                await message.reply(f"Group with chat ID `{chat_id}` is already in auto-response groups.")
+        else:
+            chat_id = message.chat.id
+            if chat_id not in auto_response_groups:
+                auto_response_groups[chat_id] = True
+                await message.reply("This group has been added to auto-response groups.")
+            else:
+                await message.reply("This group is already in auto-response groups.")
     except Exception as e:
         print(f"Error adding auto-response group: {e}")
 
@@ -294,7 +279,6 @@ async def remove_auto_response_group(client, message):
             chat_id = int(cmd[1])
             if chat_id in auto_response_groups:
                 del auto_response_groups[chat_id]
-                remove_auto_response_group_from_db(chat_id)
                 await message.reply(f"Group with chat ID `{chat_id}` removed from auto-response groups.")
             else:
                 await message.reply(f"Group with chat ID `{chat_id}` is not in auto-response groups.")
@@ -302,13 +286,12 @@ async def remove_auto_response_group(client, message):
             chat_id = message.chat.id
             if chat_id in auto_response_groups:
                 del auto_response_groups[chat_id]
-                remove_auto_response_group_from_db(chat_id)
                 await message.reply("This group has been removed from auto-response groups.")
             else:
                 await message.reply("This group is not in auto-response groups.")
     except Exception as e:
         print(f"Error removing auto-response group: {e}")
-        
+
 @app.on_message(filters.command("auto", HANDLER))
 async def toggle_auto_reply(client, message):
     global auto_reply_enabled
@@ -335,45 +318,17 @@ async def toggle_auto_reply(client, message):
 @app.on_message(filters.command("chats", HANDLER))
 async def list_auto_response_groups(client, message):
     try:
-        grab_chats = []
-        other_chats = []
-        
-        for chat_id in auto_response_groups:
-            try:
+        if auto_response_groups:
+            response_text = f"Auto-response enabled for {len(auto_response_groups)} group(s):\n"
+            for chat_id in auto_response_groups:
                 chat_info = await client.get_chat(chat_id)
-                if str(chat_id) in GRAB_CHAT_IDS:
-                    grab_chats.append(f"• {chat_info.title} (Chat ID: `{chat_id}`)")
-                else:
-                    other_chats.append(f"• {chat_info.title} (Chat ID: `{chat_id}`)")
-            except ValueError:
-                print(f"Invalid Chat ID: {chat_id}")
-                continue  # Skip invalid chat IDs
-        
-        response_text = ""
-        if grab_chats:
-            response_text += "Only GRAB Chats:\n" + "\n".join(grab_chats) + "\n\n"
-        if other_chats:
-            response_text += "Other Auto-response Chats:\n" + "\n".join(other_chats)
-        
-        if not response_text:
-            response_text = "No valid groups have been added to auto-response."
-        
-        await message.reply(response_text)
+                response_text += f"• {chat_info.title} (Chat ID: `{chat_id}`)\n"
+            await message.reply(response_text)
+        else:
+            await message.reply("No groups have been added to auto-response.")
     except Exception as e:
         print(f"Error listing auto-response groups: {e}")
 
-async def clean_invalid_chat_ids(client):
-    global auto_response_groups
-    valid_groups = {}
-    for chat_id in auto_response_groups:
-        try:
-            await client.get_chat(chat_id)  # Check if chat ID is valid
-            valid_groups[chat_id] = auto_response_groups[chat_id]
-        except ValueError:
-            print(f"Removing invalid Chat ID: {chat_id}")
-    auto_response_groups = valid_groups
-    save_auto_response_groups()
-    
 @app.on_message(filters.command("ding", HANDLER) & filters.me)
 async def ping_pong(client: Client, message: Message):
     start_time = time.time()
