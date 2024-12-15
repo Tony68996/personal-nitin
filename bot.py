@@ -269,20 +269,19 @@ async def add_auto_response_group(client, message):
         cmd = message.command
         if len(cmd) == 2:
             chat_id = int(cmd[1])
-            if chat_id not in auto_response_groups:
-                auto_response_groups[chat_id] = True
-                save_auto_response_group(chat_id)
-                await message.reply(f"Group with chat ID `{chat_id}` added to auto-response groups.")
-            else:
-                await message.reply(f"Group with chat ID `{chat_id}` is already in auto-response groups.")
         else:
             chat_id = message.chat.id
+        
+        try:
+            chat = await client.get_chat(chat_id)  # Validate the chat ID
             if chat_id not in auto_response_groups:
                 auto_response_groups[chat_id] = True
-                save_auto_response_group(chat_id)
-                await message.reply("This group has been added to auto-response groups.")
+                save_auto_response_groups()
+                await message.reply(f"Group '{chat.title}' with Chat ID `{chat_id}` added to auto-response groups.")
             else:
-                await message.reply("This group is already in auto-response groups.")
+                await message.reply(f"Group '{chat.title}' with Chat ID `{chat_id}` is already in auto-response groups.")
+        except ValueError:
+            await message.reply(f"Invalid Chat ID: {chat_id}. Please ensure the bot is added to the group.")
     except Exception as e:
         print(f"Error adding auto-response group: {e}")
 
@@ -336,37 +335,49 @@ async def toggle_auto_reply(client, message):
 @app.on_message(filters.command("chats", HANDLER))
 async def list_auto_response_groups(client, message):
     try:
-        auto_response_groups = get_auto_response_groups()
         grab_chats = []
         other_chats = []
         
         for chat_id in auto_response_groups:
-            if chat_id in GRAB_CHATS:
-                grab_chats.append(chat_id)
-            else:
-                other_chats.append(chat_id)
-
-        response_text = "Auto-response enabled for:\n"
-
+            try:
+                chat_info = await client.get_chat(chat_id)
+                if str(chat_id) in GRAB_CHAT_IDS:
+                    grab_chats.append(f"• {chat_info.title} (Chat ID: `{chat_id}`)")
+                else:
+                    other_chats.append(f"• {chat_info.title} (Chat ID: `{chat_id}`)")
+            except ValueError:
+                print(f"Invalid Chat ID: {chat_id}")
+                continue  # Skip invalid chat IDs
+        
+        response_text = ""
         if grab_chats:
-            response_text += "Only GRAB Chats\n"
-            for chat_id in grab_chats:
-                chat_info = await client.get_chat(chat_id)
-                response_text += f"• {chat_info.title} (Chat ID: `{chat_id}`)\n"
-
+            response_text += "Only GRAB Chats:\n" + "\n".join(grab_chats) + "\n\n"
         if other_chats:
-            response_text += "\nOther Chats:\n"
-            for chat_id in other_chats:
-                chat_info = await client.get_chat(chat_id)
-                response_text += f"• {chat_info.title} (Chat ID: `{chat_id}`)\n"
-
-        if not grab_chats and not other_chats:
-            response_text = "No auto-response groups are set."
-
+            response_text += "Other Auto-response Chats:\n" + "\n".join(other_chats)
+        
+        if not response_text:
+            response_text = "No valid groups have been added to auto-response."
+        
         await message.reply(response_text)
     except Exception as e:
         print(f"Error listing auto-response groups: {e}")
 
+async def clean_invalid_chat_ids(client):
+    global auto_response_groups
+    valid_groups = {}
+    for chat_id in auto_response_groups:
+        try:
+            await client.get_chat(chat_id)  # Check if chat ID is valid
+            valid_groups[chat_id] = auto_response_groups[chat_id]
+        except ValueError:
+            print(f"Removing invalid Chat ID: {chat_id}")
+    auto_response_groups = valid_groups
+    save_auto_response_groups()
+
+@app.on_startup()
+async def startup(client):
+    await clean_invalid_chat_ids(client)
+    
 @app.on_message(filters.command("ding", HANDLER) & filters.me)
 async def ping_pong(client: Client, message: Message):
     start_time = time.time()
